@@ -1,5 +1,7 @@
-# Exclude config with actual credentials
-prometheus-config.yaml
+# Exclude configs with actual credentials
+minikube-monitoring/prometheus-config.yaml
+eks-monitoring/prometheus-config-actual.yaml
+ec2-monitoring/grafana-agent-actual.yaml
 
-# Include template instead
-!prometheus-config-template.yaml
+# Include templates instead
+!*-template.yaml

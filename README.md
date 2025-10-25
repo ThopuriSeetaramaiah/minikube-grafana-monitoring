@@ -6,11 +6,13 @@ Complete monitoring setup for Minikube, EKS, and EC2 using Grafana Cloud free ti
 
 ### Minikube Monitoring
 ```bash
+cd minikube-monitoring
 minikube start
 minikube addons enable metrics-server
 kubectl create namespace monitoring
 kubectl apply -f prometheus-rbac.yaml
-kubectl apply -f prometheus-config.yaml
+# Update prometheus-config-template.yaml with your credentials first
+kubectl apply -f prometheus-config-template.yaml
 ```
 
 ### EKS Monitoring
@@ -31,8 +33,11 @@ cd ec2-monitoring
 
 ```
 ├── README.md                    # This file
-├── prometheus-config.yaml       # Minikube Prometheus config
-├── prometheus-rbac.yaml         # Minikube RBAC permissions
+├── minikube-monitoring/         # Minikube monitoring setup
+│   ├── README.md
+│   ├── prometheus-config-template.yaml
+│   ├── prometheus-rbac.yaml
+│   └── update-grafana-config.sh
 ├── eks-monitoring/              # EKS monitoring setup
 │   ├── README.md
 │   ├── prometheus-config.yaml
