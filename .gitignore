@@ -1,0 +1,5 @@
+# Exclude config with actual credentials
+prometheus-config.yaml
+
+# Include template instead
+!prometheus-config-template.yaml
