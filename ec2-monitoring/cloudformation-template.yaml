@@ -1,0 +1,126 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'EC2 instance with Grafana Cloud monitoring pre-installed'
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    Description: EC2 instance type
+  
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: EC2 Key Pair for SSH access
+  
+  GrafanaCloudURL:
+    Type: String
+    Description: Grafana Cloud Prometheus URL
+  
+  GrafanaCloudUser:
+    Type: String
+    Description: Grafana Cloud Username
+  
+  GrafanaCloudPassword:
+    Type: String
+    NoEcho: true
+    Description: Grafana Cloud API Key
+
+Resources:
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0c02fb55956c7d316  # Amazon Linux 2
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          
+          # Install Node Exporter
+          wget https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz
+          tar xvfz node_exporter-1.6.1.linux-amd64.tar.gz
+          mv node_exporter-1.6.1.linux-amd64/node_exporter /usr/local/bin/
+          
+          # Create node_exporter service
+          cat > /etc/systemd/system/node_exporter.service << 'EOF'
+          [Unit]
+          Description=Node Exporter
+          After=network.target
+          
+          [Service]
+          User=nobody
+          Group=nobody
+          Type=simple
+          ExecStart=/usr/local/bin/node_exporter
+          
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          
+          # Install Grafana Agent
+          cat > /etc/yum.repos.d/grafana.repo << 'EOF'
+          [grafana]
+          name=grafana
+          baseurl=https://packages.grafana.com/oss/rpm
+          repo_gpgcheck=1
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://packages.grafana.com/gpg.key
+          EOF
+          
+          yum install -y grafana-agent
+          
+          # Configure Grafana Agent
+          cat > /etc/grafana-agent.yaml << EOF
+          server:
+            log_level: info
+          
+          metrics:
+            global:
+              scrape_interval: 15s
+              remote_write:
+                - url: ${GrafanaCloudURL}
+                  basic_auth:
+                    username: ${GrafanaCloudUser}
+                    password: ${GrafanaCloudPassword}
+            configs:
+              - name: ec2-monitoring
+                scrape_configs:
+                  - job_name: 'node-exporter'
+                    static_configs:
+                      - targets: ['localhost:9100']
+          EOF
+          
+          # Start services
+          systemctl daemon-reload
+          systemctl enable --now node_exporter
+          systemctl enable --now grafana-agent
+      
+      Tags:
+        - Key: Name
+          Value: EC2-Grafana-Monitoring
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EC2 monitoring instance
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 9100
+          ToPort: 9100
+          CidrIp: 10.0.0.0/8
+
+Outputs:
+  InstanceId:
+    Description: EC2 Instance ID
+    Value: !Ref EC2Instance
+  
+  PublicIP:
+    Description: Public IP address
+    Value: !GetAtt EC2Instance.PublicIp

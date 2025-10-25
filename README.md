@@ -1,31 +1,49 @@
-# 📊 Minikube Monitoring with Grafana Cloud
+# 📊 Kubernetes & AWS Monitoring with Grafana Cloud
 
-Complete setup for monitoring Minikube cluster using Grafana Cloud free tier.
+Complete monitoring setup for Minikube, EKS, and EC2 using Grafana Cloud free tier.
 
 ## 🚀 Quick Start
 
-1. **Start Minikube**
-   ```bash
-   minikube start
-   minikube addons enable metrics-server
-   ```
+### Minikube Monitoring
+```bash
+minikube start
+minikube addons enable metrics-server
+kubectl create namespace monitoring
+kubectl apply -f prometheus-rbac.yaml
+kubectl apply -f prometheus-config.yaml
+```
 
-2. **Deploy Monitoring Stack**
-   ```bash
-   kubectl create namespace monitoring
-   kubectl apply -f prometheus-rbac.yaml
-   kubectl apply -f prometheus-config.yaml
-   ```
+### EKS Monitoring
+```bash
+cd eks-monitoring
+# Update prometheus-config.yaml with your credentials
+./deploy.sh
+```
 
-3. **Access Grafana Cloud**
-   - Import dashboards: 315, 8588, 6417
-   - View metrics in 5-10 minutes
+### EC2 Monitoring
+```bash
+cd ec2-monitoring
+# Copy files to EC2 and run
+./install.sh
+```
 
-## 📁 Files
+## 📁 Project Structure
 
-- `prometheus-config.yaml` - Prometheus deployment with Grafana Cloud remote write
-- `prometheus-rbac.yaml` - RBAC permissions for Kubernetes discovery
-- `update-grafana-config.sh` - Script to update credentials (template)
+```
+├── README.md                    # This file
+├── prometheus-config.yaml       # Minikube Prometheus config
+├── prometheus-rbac.yaml         # Minikube RBAC permissions
+├── eks-monitoring/              # EKS monitoring setup
+│   ├── README.md
+│   ├── prometheus-config.yaml
+│   ├── prometheus-rbac.yaml
+│   └── deploy.sh
+└── ec2-monitoring/              # EC2 monitoring setup
+    ├── README.md
+    ├── grafana-agent.yaml
+    ├── install.sh
+    └── cloudformation-template.yaml
+```
 
 ## 🔧 Configuration
 
