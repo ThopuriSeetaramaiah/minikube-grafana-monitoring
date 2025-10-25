@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-generator
+  namespace: default
+  labels:
+    app: log-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-generator
+  template:
+    metadata:
+      labels:
+        app: log-generator
+    spec:
+      containers:
+      - name: log-generator
+        image: busybox
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          while true; do
+            echo "$(date) [INFO] Processing user request - UserID: $((RANDOM % 1000))"
+            echo "$(date) [DEBUG] Database query executed successfully"
+            echo "$(date) [WARN] High memory usage detected: $((RANDOM % 100))%"
+            if [ $((RANDOM % 10)) -eq 0 ]; then
+              echo "$(date) [ERROR] Failed to connect to external service"
+            fi
+            sleep $((RANDOM % 5 + 1))
+          done
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "10m"
+          limits:
+            memory: "64Mi"
+            cpu: "50m"
