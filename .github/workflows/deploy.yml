@@ -1,0 +1,62 @@
+name: Deploy Monitoring
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev, staging, prod]
+      platform:
+        description: 'Platform'
+        required: true
+        default: 'minikube'
+        type: choice
+        options: [minikube, eks, ec2]
+  push:
+    branches: [main, develop]
+
+jobs:
+  deploy-minikube:
+    if: github.event.inputs.platform == 'minikube' || github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Minikube
+      uses: medyagh/setup-minikube@master
+    - name: Deploy monitoring
+      run: |
+        minikube addons enable metrics-server
+        kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+        kubectl apply -f minikube-monitoring/prometheus-rbac.yaml
+        envsubst < minikube-monitoring/prometheus-config-template.yaml > config.yaml
+        kubectl apply -f config.yaml
+        kubectl apply -f minikube-monitoring/sample-app.yaml
+      env:
+        YOUR_GRAFANA_CLOUD_PROMETHEUS_URL: ${{ secrets.GRAFANA_PROMETHEUS_URL }}
+        YOUR_GRAFANA_CLOUD_USER_ID: ${{ secrets.GRAFANA_USER_ID }}
+        YOUR_GRAFANA_CLOUD_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
+
+  deploy-eks:
+    if: github.event.inputs.platform == 'eks' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Configure AWS
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+    - name: Deploy EKS monitoring
+      run: |
+        aws eks update-kubeconfig --name ${{ vars.EKS_CLUSTER_NAME }}
+        kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+        kubectl apply -f eks-monitoring/prometheus-rbac.yaml
+        envsubst < eks-monitoring/prometheus-config.yaml | kubectl apply -f -
+      env:
+        YOUR_GRAFANA_CLOUD_PROMETHEUS_URL: ${{ secrets.GRAFANA_PROMETHEUS_URL }}
+        YOUR_GRAFANA_CLOUD_USER_ID: ${{ secrets.GRAFANA_USER_ID }}
+        YOUR_GRAFANA_CLOUD_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
